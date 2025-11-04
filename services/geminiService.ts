@@ -2,13 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Transaction, ReconciliationResult, InsightResult } from '../types';
 
-if (!import.meta.env.VITE_GEMINI_API_KEY) {
+if (!process.env.API_KEY) {
     // A fallback for development. In a real environment, the key would be set.
     // In the context of this tool, it's assumed to be provided.
     console.warn("API_KEY environment variable not set. Using a placeholder. The app may not function correctly.");
 }
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 const transactionSchema = {
     type: Type.OBJECT,
@@ -18,13 +18,13 @@ const transactionSchema = {
         name: { type: Type.STRING },
         amount: { type: Type.NUMBER },
         description: { type: Type.STRING },
-        paymentMethod: { type: Type.STRING },
-        gstFlag: { type: Type.BOOLEAN },
-        over5kFlag: { type: Type.BOOLEAN },
-        payout_id: { type: Type.STRING },
-        gross_amount: { type: Type.NUMBER },
-        fee: { type: Type.NUMBER },
-        campaign: { type: Type.STRING },
+        paymentMethod: { type: Type.STRING, nullable: true },
+        gstFlag: { type: Type.BOOLEAN, nullable: true },
+        over5kFlag: { type: Type.BOOLEAN, nullable: true },
+        payout_id: { type: Type.STRING, nullable: true },
+        gross_amount: { type: Type.NUMBER, nullable: true },
+        fee: { type: Type.NUMBER, nullable: true },
+        campaign: { type: Type.STRING, nullable: true },
     },
     required: ['id', 'date', 'name', 'amount', 'description'],
 };
@@ -112,12 +112,7 @@ export const runReconciliation = async (sourceA: Transaction[], sourceB: Transac
             },
         });
 
-        let jsonString = response.text.trim();
-        if (jsonString.startsWith('```json')) {
-            jsonString = jsonString.substring(7, jsonString.length - 3).trim();
-        } else if (jsonString.startsWith('```')) {
-            jsonString = jsonString.substring(3, jsonString.length - 3).trim();
-        }
+        const jsonString = response.text.trim();
         return JSON.parse(jsonString) as ReconciliationResult;
     } catch (error) {
         console.error("Error calling Gemini API for reconciliation:", error);
@@ -132,13 +127,18 @@ const insightsSchema = {
         commonPatterns: { type: Type.ARRAY, items: { type: Type.STRING } },
         timeSavingsEstimate: { type: Type.STRING },
         riskAssessment: { type: Type.STRING },
-        timeReduction: { type: Type.STRING },
-        errorRateReduction: { type: Type.STRING },
-        closureAcceleration: { type: Type.STRING },
+        successMetrics: {
+            type: Type.OBJECT,
+            properties: {
+                timeReduction: { type: Type.STRING },
+                errorRateReduction: { type: Type.STRING },
+                closureAcceleration: { type: Type.STRING },
+            },
+            required: ['timeReduction', 'errorRateReduction', 'closureAcceleration']
+        }
     },
-    required: ['commonPatterns', 'timeSavingsEstimate', 'riskAssessment', 'timeReduction', 'errorRateReduction', 'closureAcceleration']
+    required: ['commonPatterns', 'timeSavingsEstimate', 'riskAssessment', 'successMetrics']
 };
-
 
 export const generateInsights = async (result: ReconciliationResult): Promise<InsightResult> => {
     const prompt = `
@@ -161,9 +161,9 @@ export const generateInsights = async (result: ReconciliationResult): Promise<In
     2.  **Estimate Time Savings**: Assume a manual process takes 20 hours. Project the time saved using this AI tool. Be optimistic but realistic.
     3.  **Assess Risk**: Briefly describe the compliance or financial risk posed by the unreconciled items (e.g., missing donation records in DMS).
     4.  **Quantify Success Metrics**: Project improvements based on this reconciliation. Provide specific, compelling numbers for:
-        - timeReduction (e.g., "From 20+ hours to <2 hours monthly")
-        - errorRateReduction (e.g., "From ~5% manual error rate to <0.1%")
-        - closureAcceleration (e.g., "From 5 days to 1 day")
+        - Time Reduction (e.g., "From 20+ hours to <2 hours monthly")
+        - Error Rate Reduction (e.g., "From ~5% manual error rate to <0.1%")
+        - Month-End Closure Acceleration (e.g., "From 5 days to 1 day")
 
     Return the report as a JSON object adhering to the provided schema.
     `;

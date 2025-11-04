@@ -34,15 +34,15 @@ export const InsightsReport: React.FC<InsightsReportProps> = ({ isOpen, onClose,
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <p className="text-sm font-semibold text-green-800">Time Reduction</p>
-                    <p className="text-xl font-bold text-green-900">{insights.timeReduction}</p>
+                    <p className="text-xl font-bold text-green-900">{insights.successMetrics.timeReduction}</p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <p className="text-sm font-semibold text-green-800">Error Rate Reduction</p>
-                    <p className="text-xl font-bold text-green-900">{insights.errorRateReduction}</p>
+                    <p className="text-xl font-bold text-green-900">{insights.successMetrics.errorRateReduction}</p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                     <p className="text-sm font-semibold text-green-800">Faster Month-End</p>
-                    <p className="text-xl font-bold text-green-900">{insights.closureAcceleration}</p>
+                    <p className="text-xl font-bold text-green-900">{insights.successMetrics.closureAcceleration}</p>
                 </div>
             </div>
 
