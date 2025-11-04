@@ -37,11 +37,9 @@ export interface InsightResult {
   commonPatterns: string[];
   timeSavingsEstimate: string;
   riskAssessment: string;
-  successMetrics: {
-    timeReduction: string;
-    errorRateReduction: string;
-    closureAcceleration: string;
-  };
+  timeReduction: string;
+  errorRateReduction: string;
+  closureAcceleration: string;
 }
 
 export enum AppState {
