@@ -1,0 +1,5 @@
+{
+  "name": "ReconneX: AI-Powered Financial Reconciliation",
+  "description": "An AI-powered financial reconciliation solution that automatically matches transactions across multiple data sources for non-profits in Singapore. This prototype demonstrates intelligent matching, a discrepancy resolution workspace, and insightful reporting to reduce manual effort and compliance risks.",
+  "requestFramePermissions": []
+}
