@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, ChangeEvent, useEffect } from 'react';
+import React, { useState, useCallback, ChangeEvent } from 'react';
 import type { Transaction } from '../types';
 import { UploadIcon, CheckCircleIcon } from './icons/Icons';
 import { generateSampleData } from '../utils/sampleData';
@@ -13,6 +13,8 @@ interface UploadStepProps {
   initialSourceB: { name:string; data: Transaction[]; total: number } | null;
   error: string | null;
 }
+
+type DataSourceType = 'stripe' | 'dms';
 
 const FileUploadBox: React.FC<{
   title: string;
@@ -66,31 +68,51 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
   const [sourceA, setSourceA] = useState<{ name: string; data: Transaction[]; total: number } | null>(initialSourceA);
   const [sourceB, setSourceB] = useState<{ name: string; data: Transaction[]; total: number } | null>(initialSourceB);
 
-  const parseCSV = (csvText: string): Transaction[] => {
+  const parseCSV = (csvText: string, sourceType: DataSourceType): Transaction[] => {
     const rows = csvText.trim().split('\n');
-    const headers = rows.shift()?.split(',').map(h => h.trim()) || [];
+    const headerLine = rows.shift();
+    if (!headerLine) return [];
+    
+    const headers = headerLine.split(',').map(h => h.trim().toLowerCase().replace(/[\s_]+/g, ''));
+    
     return rows.map((row, index) => {
       const values = row.split(',');
-      const transaction: any = { id: `row-${index + 1}` };
+      const entry: { [key: string]: string } = {};
       headers.forEach((header, i) => {
-        const key = header.toLowerCase().replace(/\s+/g, '');
-        let value: string | number | boolean = values[i] ? values[i].trim() : '';
-        if (key === 'amount') {
-          value = parseFloat(value) || 0;
-        } else if (key.includes('flag')) {
-          value = value.toLowerCase() === 'true';
-        }
-        transaction[key] = value;
+        entry[header] = values[i] ? values[i].trim() : '';
       });
-      return transaction as Transaction;
+
+      if (sourceType === 'stripe') {
+        return {
+          id: entry.id || `stripe-${index + 1}`,
+          date: entry.createdutc || entry.payoutdate,
+          name: entry.customername || 'Unknown',
+          amount: parseFloat(entry.net) || 0,
+          description: entry.description || '',
+          gross_amount: parseFloat(entry.gross) || 0,
+          fee: parseFloat(entry.fee) || 0,
+          payout_id: entry.payoutid || 'N/A',
+          paymentMethod: 'Stripe',
+        };
+      } else { // dms
+        return {
+          id: entry.donationid || `dms-${index + 1}`,
+          date: entry.donationdate,
+          name: entry.donorname,
+          amount: parseFloat(entry.amount) || 0,
+          description: `Campaign: ${entry.campaign || 'N/A'}`,
+          campaign: entry.campaign || 'N/A',
+          paymentMethod: entry.paymentmethod || 'Unknown',
+        };
+      }
     });
   };
 
-  const processFile = (file: File, setter: React.Dispatch<React.SetStateAction<{ name: string; data: Transaction[]; total: number } | null>>) => {
+  const processFile = (file: File, setter: React.Dispatch<React.SetStateAction<{ name: string; data: Transaction[]; total: number } | null>>, sourceType: DataSourceType) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const data = parseCSV(text);
+      const data = parseCSV(text, sourceType);
       const total = data.reduce((sum, t) => sum + t.amount, 0);
       setter({ name: file.name, data, total });
     };
@@ -98,13 +120,15 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
   };
 
   const handleUseSampleData = useCallback(() => {
-    const { sourceA: sampleA, sourceB: sampleB } = generateSampleData();
-    const dataA = parseCSV(sampleA);
+    const { stripeReport, dmsReport } = generateSampleData();
+    
+    const dataA = parseCSV(stripeReport, 'stripe');
     const totalA = dataA.reduce((sum, t) => sum + t.amount, 0);
-    setSourceA({ name: 'PaymentGateway.csv', data: dataA, total: totalA });
-    const dataB = parseCSV(sampleB);
+    setSourceA({ name: 'StripeReport.csv', data: dataA, total: totalA });
+
+    const dataB = parseCSV(dmsReport, 'dms');
     const totalB = dataB.reduce((sum, t) => sum + t.amount, 0);
-    setSourceB({ name: 'AccountingLedger.csv', data: dataB, total: totalB });
+    setSourceB({ name: 'DMSRecords.csv', data: dataB, total: totalB });
   }, []);
   
   const canReconcile = sourceA && sourceB;
@@ -113,7 +137,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
     <div className="max-w-4xl mx-auto animate-fade-in-up">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-brand-dark">Upload Your Data Sources</h2>
-        <p className="text-gray-600 mt-2">Upload two CSV files to begin reconciliation, or use our sample data to see ReconneX in action.</p>
+        <p className="text-gray-600 mt-2">Upload the Stripe transaction report and the DMS donation records to begin.</p>
       </div>
       
       {error && (
@@ -124,8 +148,8 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
       )}
 
       <div className="flex flex-col md:flex-row gap-8 mb-6">
-        <FileUploadBox title="Source 1: Payment Gateway" onFileUpload={(file) => processFile(file, setSourceA)} fileData={sourceA ? { name: sourceA.name, count: sourceA.data.length, total: sourceA.total } : null} id="file-a" />
-        <FileUploadBox title="Source 2: Accounting Ledger" onFileUpload={(file) => processFile(file, setSourceB)} fileData={sourceB ? { name: sourceB.name, count: sourceB.data.length, total: sourceB.total } : null} id="file-b" />
+        <FileUploadBox title="Source 1: Stripe Transaction Report" onFileUpload={(file) => processFile(file, setSourceA, 'stripe')} fileData={sourceA ? { name: sourceA.name, count: sourceA.data.length, total: sourceA.total } : null} id="file-a" />
+        <FileUploadBox title="Source 2: DMS Donation Records" onFileUpload={(file) => processFile(file, setSourceB, 'dms')} fileData={sourceB ? { name: sourceB.name, count: sourceB.data.length, total: sourceB.total } : null} id="file-b" />
       </div>
 
       <div className="text-center space-y-4">

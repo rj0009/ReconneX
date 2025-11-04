@@ -24,7 +24,13 @@ const TransactionCard: React.FC<{ transaction: Transaction; sourceName: string; 
                 <p className={isHighlighted('date') ? 'bg-yellow-200 rounded px-1' : ''}><span className="font-semibold w-24 inline-block">Date:</span> {transaction.date}</p>
                 <p className={isHighlighted('name') ? 'bg-yellow-200 rounded px-1' : ''}><span className="font-semibold w-24 inline-block">Name:</span> {transaction.name}</p>
                 <p className={isHighlighted('amount') ? 'bg-yellow-200 rounded px-1' : ''}><span className="font-semibold w-24 inline-block">Amount:</span> S${transaction.amount.toFixed(2)}</p>
+                {transaction.gross_amount !== undefined && transaction.fee !== undefined && (
+                    <p className="text-xs text-gray-500 pl-1"><span className="font-semibold w-24 inline-block"></span>(Gross: S${transaction.gross_amount.toFixed(2)}, Fee: S${transaction.fee.toFixed(2)})</p>
+                )}
                 <p><span className="font-semibold w-24 inline-block">Description:</span> {transaction.description}</p>
+                {transaction.payout_id && <p><span className="font-semibold w-24 inline-block">Payout ID:</span> {transaction.payout_id}</p>}
+                {transaction.campaign && <p><span className="font-semibold w-24 inline-block">Campaign:</span> {transaction.campaign}</p>}
+                {transaction.paymentMethod && <p><span className="font-semibold w-24 inline-block">Method:</span> {transaction.paymentMethod}</p>}
             </div>
         </div>
     );
@@ -41,7 +47,7 @@ export const ResolutionWorkspace: React.FC<ResolutionWorkspaceProps> = ({ isOpen
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
         <header className="p-5 border-b flex justify-between items-center">
           <h2 className="text-2xl font-bold text-brand-dark">Discrepancy Resolution Workspace</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-3xl leading-none">&times;</button>
         </header>
 
         <div className="border-b">

@@ -8,6 +8,12 @@ export interface Transaction {
   paymentMethod?: string;
   gstFlag?: boolean;
   over5kFlag?: boolean;
+
+  // New source-specific fields
+  payout_id?: string;
+  gross_amount?: number;
+  fee?: number;
+  campaign?: string;
 }
 
 export interface MatchPair {
