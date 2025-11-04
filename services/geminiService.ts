@@ -2,13 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Transaction, ReconciliationResult, InsightResult } from '../types';
 
-if (!import.meta.env.VITE_GEMINI_API_KEY) {
+if (!process.env.API_KEY) {
     // A fallback for development. In a real environment, the key would be set.
     // In the context of this tool, it's assumed to be provided.
     console.warn("API_KEY environment variable not set. Using a placeholder. The app may not function correctly.");
 }
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 const transactionSchema = {
     type: Type.OBJECT,
@@ -18,13 +18,13 @@ const transactionSchema = {
         name: { type: Type.STRING },
         amount: { type: Type.NUMBER },
         description: { type: Type.STRING },
-        paymentMethod: { type: Type.STRING, nullable: true },
-        gstFlag: { type: Type.BOOLEAN, nullable: true },
-        over5kFlag: { type: Type.BOOLEAN, nullable: true },
-        payout_id: { type: Type.STRING, nullable: true },
-        gross_amount: { type: Type.NUMBER, nullable: true },
-        fee: { type: Type.NUMBER, nullable: true },
-        campaign: { type: Type.STRING, nullable: true },
+        paymentMethod: { type: Type.STRING },
+        gstFlag: { type: Type.BOOLEAN },
+        over5kFlag: { type: Type.BOOLEAN },
+        payout_id: { type: Type.STRING },
+        gross_amount: { type: Type.NUMBER },
+        fee: { type: Type.NUMBER },
+        campaign: { type: Type.STRING },
     },
     required: ['id', 'date', 'name', 'amount', 'description'],
 };
@@ -112,7 +112,12 @@ export const runReconciliation = async (sourceA: Transaction[], sourceB: Transac
             },
         });
 
-        const jsonString = response.text.trim();
+        let jsonString = response.text.trim();
+        if (jsonString.startsWith('```json')) {
+            jsonString = jsonString.substring(7, jsonString.length - 3).trim();
+        } else if (jsonString.startsWith('```')) {
+            jsonString = jsonString.substring(3, jsonString.length - 3).trim();
+        }
         return JSON.parse(jsonString) as ReconciliationResult;
     } catch (error) {
         console.error("Error calling Gemini API for reconciliation:", error);
