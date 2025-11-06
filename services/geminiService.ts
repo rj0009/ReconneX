@@ -2,13 +2,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { Transaction, ReconciliationResult, InsightResult } from '../types';
 
-if (!import.meta.env.VITE_GEMINI_API_KEY) {
+if (!process.env.API_KEY) {
     // A fallback for development. In a real environment, the key would be set.
     // In the context of this tool, it's assumed to be provided.
     console.warn("API_KEY environment variable not set. Using a placeholder. The app may not function correctly.");
 }
 
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY as string });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 const transactionSchema = {
     type: Type.OBJECT,

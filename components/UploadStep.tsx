@@ -55,9 +55,9 @@ const FileUploadBox: React.FC<{
           <div className="flex flex-col items-center justify-center pt-5 pb-6">
             <UploadIcon className="w-10 h-10 mb-3 text-gray-400" />
             <p className="mb-2 text-sm text-gray-500"><span className="font-semibold">Click to upload</span> or drag and drop</p>
-            <p className="text-xs text-gray-500">CSV file</p>
+            <p className="text-xs text-gray-500">CSV or TSV file</p>
           </div>
-          <input id={id} type="file" className="hidden" accept=".csv" onChange={handleFileChange} />
+          <input id={id} type="file" className="hidden" accept=".csv,.tsv,.txt" onChange={handleFileChange} />
         </label>
       )}
     </div>
@@ -68,24 +68,53 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
   const [sourceA, setSourceA] = useState<{ name: string; data: Transaction[]; total: number } | null>(initialSourceA);
   const [sourceB, setSourceB] = useState<{ name: string; data: Transaction[]; total: number } | null>(initialSourceB);
 
-  const parseCSV = (csvText: string, sourceType: DataSourceType): Transaction[] => {
-    const rows = csvText.trim().split('\n');
+  const parseCSV = (fileContent: string, sourceType: DataSourceType): Transaction[] => {
+    const rows = fileContent.trim().split('\n');
     const headerLine = rows.shift();
     if (!headerLine) return [];
+
+    const separator = headerLine.includes('\t') ? '\t' : ',';
+    const headers = headerLine.split(separator).map(h => h.trim().toLowerCase().replace(/[\s_]+/g, ''));
     
-    const headers = headerLine.split(',').map(h => h.trim().toLowerCase().replace(/[\s_]+/g, ''));
-    
+    // Regex to split CSV by comma, but ignore commas inside double quotes
+    const csvRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
     return rows.map((row, index) => {
-      const values = row.split(',');
+      const values = (separator === ',' 
+        ? row.split(csvRegex).map(v => v.trim().replace(/^"|"$/g, '')) 
+        : row.split(separator)
+      ).map(v => v.trim());
+
       const entry: { [key: string]: string } = {};
       headers.forEach((header, i) => {
-        entry[header] = values[i] ? values[i].trim() : '';
+        entry[header] = values[i] || '';
       });
+
+      const formatDate = (dateString: string): string => {
+        if (!dateString) return '';
+        
+        // Handle YYYY-MM-DDTHH:mm:ssZ (from Stripe) -> YYYY-MM-DD
+        if (dateString.includes('T')) {
+            return dateString.substring(0, 10);
+        }
+        
+        // Handle D/M/YYYY or DD/MM/YYYY (from new DMS) -> YYYY-MM-DD
+        const parts = dateString.split('/');
+        if (parts.length === 3 && !isNaN(parseInt(parts[2]))) {
+            const day = parts[0].padStart(2, '0');
+            const month = parts[1].padStart(2, '0');
+            const year = parts[2];
+            return `${year}-${month}-${day}`;
+        }
+
+        // Assume YYYY-MM-DD (from old DMS) or other formats are ok as is
+        return dateString;
+      }
 
       if (sourceType === 'stripe') {
         return {
           id: entry.id || `stripe-${index + 1}`,
-          date: entry.createdutc || entry.payoutdate,
+          date: formatDate(entry.createdutc || entry.payoutdate),
           name: entry.customername || 'Unknown',
           amount: parseFloat(entry.net) || 0,
           description: entry.description || '',
@@ -97,7 +126,7 @@ export const UploadStep: React.FC<UploadStepProps> = ({ onReconcile, initialSour
       } else { // dms
         return {
           id: entry.donationid || `dms-${index + 1}`,
-          date: entry.donationdate,
+          date: formatDate(entry.donationdate),
           name: entry.donorname,
           amount: parseFloat(entry.amount) || 0,
           description: `Campaign: ${entry.campaign || 'N/A'}`,
